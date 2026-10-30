@@ -1,0 +1,131 @@
+// use prisma-8
+
+model User {
+  id            String          @id @onCreate(uuid())
+  email         String          @unique
+  phone         String          @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  bvn           String?         @unique
+  nin           String?         @unique
+  isVerified    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @onCreate(now()) @onUpdate(now())
+
+  wallet        Wallet?
+  virtualCards  VirtualCard[]
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+model Wallet {
+  id            String          @id @onCreate(uuid())
+  userId        String          @unique
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance       Decimal         @default(0.00)
+  currency      String          @default("NGN")
+  status        WalletStatus    @default(ACTIVE)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @onCreate(now()) @onUpdate(now())
+
+  transactions  Transaction[]
+
+  @@map("wallets")
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  SUSPENDED
+}
+
+model Transaction {
+  id              String            @id @onCreate(uuid())
+  walletId        String
+  wallet          Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  reference       String            @unique
+  amount          Decimal
+  fee             Decimal           @default(0.00)
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  channel         String?           @default("BANK_TRANSFER")
+  description     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @onCreate(now()) @onUpdate(now())
+
+  @@map("transactions")
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+model VirtualCard {
+  id             String            @id @onCreate(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerCardId String            @unique
+  cardHash       String
+  last4          String
+  cardBrand      String
+  currency       String            @default("USD")
+  balance        Decimal           @default(0.00)
+  expiryMonth    Int
+  expiryYear     Int
+  status         VirtualCardStatus @default(ACTIVE)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @onCreate(now()) @onUpdate(now())
+
+  subscriptions  Subscription[]
+
+  @@map("virtual_cards")
+}
+
+enum VirtualCardStatus {
+  ACTIVE
+  FROZEN
+  TERMINATED
+}
+
+model Subscription {
+  id             String             @id @onCreate(uuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  virtualCardId  String?
+  virtualCard    VirtualCard?       @relation(fields: [virtualCardId], references: [id], onDelete: SetNull)
+  serviceName    String
+  planName       String?
+  amount         Decimal
+  currency       String             @default("USD")
+  billingCycle   BillingCycle       @default(MONTHLY)
+  status         SubscriptionStatus @default(ACTIVE)
+  nextBillingDate DateTime
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @onCreate(now()) @onUpdate(now())
+
+  @@map("subscriptions")
+}
+
+enum BillingCycle {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  FAILED
+}
